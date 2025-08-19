@@ -1,55 +1,77 @@
-import fs from 'fs';
-import path from 'path';
+import { NextConfig } from 'next';
+import withPWAInit from '@ducanh2912/next-pwa';
 
-/**
- * Checks if next.config.ts exists and is not empty
- * @returns boolean indicating if the file exists and has content
- */
-function checkNextConfigTs(): boolean {
-  const configPath = path.join(process.cwd(), 'next.config.ts');
-  
-  if (!fs.existsSync(configPath)) {
-    console.log('❌ next.config.ts does not exist');
-    return false;
-  }
-  
-  const stats = fs.statSync(configPath);
-  if (stats.size === 0) {
-    console.log('❌ next.config.ts exists but is empty');
-    return false;
-  }
-  
-  console.log('✅ next.config.ts exists and is not empty');
-  console.log(`📄 File size: ${stats.size} bytes`);
-  return true;
-}
+// Initialize PWA support
+const withPWA = withPWAInit({
+  dest: 'public',
+  // Additional PWA options can be added here
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  skipWaiting: true,
+});
 
-/**
- * Checks all possible Next.js configuration files
- */
-function checkAllNextConfigs(): void {
-  const possibleConfigs = [
-    'next.config.ts',
-    'next.config.js',
-    'next.config.mjs',
-    'next.config.cjs'
-  ];
+// Define the Next.js configuration
+const nextConfig: NextConfig = {
+  // Enable React strict mode for improved error handling
+  reactStrictMode: true,
   
-  console.log('🔍 Checking for Next.js configuration files...\n');
+  // Configure image optimization
+  images: {
+    // Allow images from specific domains
+    domains: ['m.media-amazon.com'],
+    
+    // Set image device sizes
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    
+    // Set image icon sizes
+    iconSizes: [16, 32, 48, 64, 96],
+  },
   
-  possibleConfigs.forEach(config => {
-    const configPath = path.join(process.cwd(), config);
-    if (fs.existsSync(configPath)) {
-      const stats = fs.statSync(configPath);
-      console.log(`✅ ${config} - ${stats.size} bytes`);
-    } else {
-      console.log(`❌ ${config} - not found`);
-    }
-  });
-}
+  // Enable webpack optimizations
+  webpack: (config, { isServer }) => {
+    // Add any custom webpack configurations here
+    
+    // For example, you can add support for other file types
+    // config.module.rules.push({
+    //   test: /\.(png|jpe?g|gif|svg|webp)$/i,
+    //   use: {
+    //     loader: 'url-loader',
+    //     options: {
+    //       limit: 1000,
+    //       publicPath: '/_next/static/images',
+    //       outputPath: 'static/images',
+    //       name: '[name].[hash:7].[ext]',
+    //     },
+    //   },
+    // });
+    
+    return config;
+  },
+  
+  // Environment variables
+  env: {
+    // Add any environment variables here
+    APP_NAME: 'ALX Movie App',
+  },
+  
+  // Configure trailing slash behavior
+  trailingSlash: false,
+  
+  // Configure build output directory
+  distDir: '.next',
+  
+  // Enable experimental features (use with caution)
+  experimental: {
+    // Enable new features like esmExternals
+    esmExternals: true,
+  },
+  
+  // Configure page extensions
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  
+  // Configure powered by header
+  poweredByHeader: false,
+};
 
-// Main execution
-console.log('=== Next.js Configuration Check ===\n');
-checkNextConfigTs();
-console.log('\n=== All Configuration Files ===');
-checkAllNextConfigs();
+// Export the configuration with PWA support
+export default withPWA(nextConfig);

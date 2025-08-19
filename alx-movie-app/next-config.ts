@@ -1,13 +1,44 @@
 import { NextConfig } from 'next';
 import withPWAInit from '@ducanh2912/next-pwa';
 
-// Initialize PWA support
+// Initialize PWA support with optimized configuration
 const withPWA = withPWAInit({
   dest: 'public',
-  // Additional PWA options can be added here
-  disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+  cacheOnFrontendNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  workboxOptions: {
+    disableDevLogs: true,
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/m\.media-amazon\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'movie-images',
+          expiration: {
+            maxEntries: 100,
+            maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+          },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/api\..*/i,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'api-cache',
+          networkTimeoutSeconds: 10,
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 60 * 5, // 5 minutes
+          },
+        },
+      },
+    ],
+  },
 });
 
 // Define the Next.js configuration
@@ -15,43 +46,55 @@ const nextConfig: NextConfig = {
   // Enable React strict mode for improved error handling
   reactStrictMode: true,
   
-  // Configure image optimization
+  // Enable SWC minification for faster builds
+  swcMinify: true,
+  
+  // Configure image optimization with modern approach
   images: {
-    // Allow images from specific domains
-    domains: ['m.media-amazon.com'],
+    // Use remotePatterns instead of deprecated domains
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'm.media-amazon.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'image.tmdb.org',
+        port: '',
+        pathname: '/**',
+      },
+    ],
     
-    // Set image device sizes
-    deviceSizes: [320, 420, 768, 1024, 1200],
+    // Set image device sizes for responsive images
+    deviceSizes: [320, 420, 640, 768, 1024, 1280, 1536],
     
-    // Set image icon sizes
-    iconSizes: [16, 32, 48, 64, 96],
+    // Enable AVIF support
+    formats: ['image/webp', 'image/avif'],
   },
   
   // Enable webpack optimizations
   webpack: (config, { isServer }) => {
-    // Add any custom webpack configurations here
+    // Add custom webpack configurations
     
-    // For example, you can add support for other file types
-    // config.module.rules.push({
-    //   test: /\.(png|jpe?g|gif|svg|webp)$/i,
-    //   use: {
-    //     loader: 'url-loader',
-    //     options: {
-    //       limit: 1000,
-    //       publicPath: '/_next/static/images',
-    //       outputPath: 'static/images',
-    //       name: '[name].[hash:7].[ext]',
-    //     },
-    //   },
-    // });
+    // Optimize bundle size for client
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
     
     return config;
   },
   
   // Environment variables
   env: {
-    // Add any environment variables here
     APP_NAME: 'ALX Movie App',
+    APP_VERSION: process.env.npm_package_version || '1.0.0',
   },
   
   // Configure trailing slash behavior
@@ -60,17 +103,74 @@ const nextConfig: NextConfig = {
   // Configure build output directory
   distDir: '.next',
   
-  // Enable experimental features (use with caution)
+  // Enable modern features
   experimental: {
-    // Enable new features like esmExternals
+    // Enable new features
     esmExternals: true,
   },
   
   // Configure page extensions
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   
-  // Configure powered by header
+  // Configure powered by header for security
   poweredByHeader: false,
+  
+  // Add security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // Configure redirects
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
+  
+  // Configure rewrites
+  async rewrites() {
+    return [
+      {
+        source: '/api/movies/:path*',
+        destination: '/api/movies/:path*',
+      },
+    ];
+  },
 };
 
 // Export the configuration with PWA support
